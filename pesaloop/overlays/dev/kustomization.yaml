@@ -9,7 +9,7 @@ resources:
 # Dev image tag — updated automatically by GitHub Actions on every push to main
 images:
   - name: ghcr.io/francis-mwas/pesaloop-backend
-    newTag: dev-latest
+    newTag: dev-912742f
 
 patches:
   # 1 replica — no HA needed in dev
