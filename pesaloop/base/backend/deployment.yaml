@@ -188,17 +188,18 @@ data:
   SPRING_PROFILES_ACTIVE: 'docker'
 
   # ── Database — password injected from Secret above ────────────────────────
-  SPRING_DATASOURCE_URL: 'jdbc:postgresql://host.minikube.internal:5430/pesaloop'
-  SPRING_DATASOURCE_USERNAME: 'pesaloop'
+  # SPRING_DATASOURCE_URL: 'jdbc:postgresql://host.minikube.internal:5430/pesaloop'
+  # SPRING_DATASOURCE_USERNAME: 'pesaloop'
+  # SPRING_DATASOURCE_URL: 'jdbc:postgresql://pesaloop-postgres-service:5432/pesaloop'
 
   # ── Hikari connection pool — tuned conservatively ─────────────────────────
   # Do NOT set this to 1200 — see incident analysis
-  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: '5'
-  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '20'
-  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: '30000'
-  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: '120000'
-  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: '600000'
-  SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: '60000'
+  # SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: '5'
+  # SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '20'
+  # SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: '30000'
+  # SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: '120000'
+  # SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: '600000'
+  # SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: '60000'
 
   # ── Flyway DB migrations ───────────────────────────────────────────────────
   SPRING_FLYWAY_ENABLED: 'true'
