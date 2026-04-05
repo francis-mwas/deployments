@@ -44,5 +44,5 @@ configMapGenerator:
       - PESALOOP_MPESA_ENVIRONMENT=sandbox
       - PESALOOP_MPESA_BASE_URL=https://sandbox.safaricom.co.ke
       - PESALOOP_SMS_USERNAME=sandbox
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db.qnbdgpoueacdqkxjebbe.supabase.co:5432/postgres?sslmode=require
-      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
+      - SPRING_DATASOURCE_USERNAME=postgres.qnbdgpoueacdqkxjebbe
