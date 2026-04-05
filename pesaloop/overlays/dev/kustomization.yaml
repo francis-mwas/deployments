@@ -12,7 +12,6 @@ images:
     newTag: dev-912742f
 
 patches:
-  # 1 replica — no HA needed in dev
   - target:
       kind: Deployment
       name: pesaloop-backend
@@ -20,7 +19,7 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
-  # Smaller limits — saves laptop resources
+  # Increase memory for dev — Spring Boot needs more room to start
   - target:
       kind: Deployment
       name: pesaloop-backend
@@ -29,10 +28,10 @@ patches:
         path: /spec/template/spec/containers/0/resources
         value:
           requests:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "100m"
           limits:
-            memory: "512Mi"
+            memory: "1Gi"
             cpu: "250m"
 
 configMapGenerator:
