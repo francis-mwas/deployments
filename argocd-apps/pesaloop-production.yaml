@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pesaloop-backend-production
+  namespace: argocd
+  labels:
+    project: pesaloop
+    environment: production
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/francis-mwas/deployments.git
+    targetRevision: main
+    path: pesaloop/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pesaloop-production
+  # NO automated sync for production
+  # Human must review diff and click Sync in ArgoCD UI
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 2
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

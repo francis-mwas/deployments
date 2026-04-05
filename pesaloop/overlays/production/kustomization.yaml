@@ -1,0 +1,61 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pesaloop-production
+
+resources:
+  - ../../base/backend
+
+# Production ALWAYS uses a pinned version — NEVER latest
+# This tag is updated manually via PR review before deployment
+images:
+  - name: ghcr.io/francis-mwas/pesaloop-backend
+    newTag: v1.0.0
+
+patches:
+  # 3 replicas — high availability
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  # Full production resources
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+  # Always keep 2 pods alive during node drain/maintenance
+  - target:
+      kind: PodDisruptionBudget
+      name: pesaloop-backend-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 2
+
+configMapGenerator:
+  - name: pesaloop-backend-config
+    behavior: merge
+    literals:
+      # Minimal logging in production — only warnings and errors
+      - LOGGING_LEVEL_COM_PESALOOP=WARN
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=ERROR
+      - SPRING_JPA_SHOW_SQL=false
+      - PESALOOP_JWT_EXPIRY_HOURS=24
+      # Live M-Pesa — not sandbox
+      - PESALOOP_MPESA_ENVIRONMENT=production
+      - PESALOOP_MPESA_BASE_URL=https://api.safaricom.co.ke
+      - PESALOOP_MPESA_WEBHOOK_IP_CHECK_ENABLED=true
+      # Live Africa's Talking — not sandbox
+      - PESALOOP_SMS_USERNAME=PesaLoop

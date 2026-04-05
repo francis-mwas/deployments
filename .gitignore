@@ -1,0 +1,13 @@
+# Never commit plain secrets
+secrets.yaml
+*-plain.yaml
+*.secret.yaml
+
+# Sealed secrets are safe to commit (encrypted)
+# !sealed-secrets.yaml
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

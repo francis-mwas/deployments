@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pesaloop-dev
+
+resources:
+  - ../../base/backend
+
+# Dev image tag — updated automatically by GitHub Actions on every push to main
+images:
+  - name: ghcr.io/francis-mwas/pesaloop-backend
+    newTag: dev-latest
+
+patches:
+  # 1 replica — no HA needed in dev
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  # Smaller limits — saves laptop resources
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+
+configMapGenerator:
+  - name: pesaloop-backend-config
+    behavior: merge
+    literals:
+      - LOGGING_LEVEL_COM_PESALOOP=DEBUG
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG
+      - PESALOOP_JWT_EXPIRY_HOURS=72
+      - PESALOOP_MPESA_ENVIRONMENT=sandbox
+      - PESALOOP_MPESA_BASE_URL=https://sandbox.safaricom.co.ke
+      - PESALOOP_SMS_USERNAME=sandbox

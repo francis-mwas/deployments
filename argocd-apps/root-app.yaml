@@ -1,0 +1,31 @@
+# =============================================================================
+# Root Application — App of Apps pattern
+# This is the ONLY file you apply manually (once).
+# It watches argocd-apps/ folder and creates all child Applications
+# automatically. Adding a new .yaml here creates a new ArgoCD Application.
+#
+# Apply once with:
+#   kubectl apply -f argocd-apps/root-app.yaml
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pesaloop-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/francis-mwas/deployments.git
+    targetRevision: main
+    path: argocd-apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

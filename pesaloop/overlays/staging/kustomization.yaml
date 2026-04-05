@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pesaloop-staging
+
+resources:
+  - ../../base/backend
+
+# Staging uses pinned version tags — never latest
+images:
+  - name: ghcr.io/francis-mwas/pesaloop-backend
+    newTag: v1.0.0
+
+patches:
+  # 2 replicas — mirrors production behaviour
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # Production-like resources
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+  # Keep at least 1 pod alive during maintenance
+  - target:
+      kind: PodDisruptionBudget
+      name: pesaloop-backend-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+
+configMapGenerator:
+  - name: pesaloop-backend-config
+    behavior: merge
+    literals:
+      - LOGGING_LEVEL_COM_PESALOOP=INFO
+      - PESALOOP_JWT_EXPIRY_HOURS=24
+      - PESALOOP_MPESA_ENVIRONMENT=sandbox
+      - PESALOOP_MPESA_BASE_URL=https://sandbox.safaricom.co.ke
+      - PESALOOP_SMS_USERNAME=sandbox

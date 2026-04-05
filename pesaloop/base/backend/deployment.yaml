@@ -1,0 +1,253 @@
+# =============================================================================
+# PesaLoop Backend — All Kubernetes resources in one file
+# Sections: Deployment → Service → ConfigMap
+# Secrets are in secrets.yaml (template only — use Sealed Secrets for real values)
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pesaloop-backend
+  labels:
+    app: pesaloop-backend
+    project: pesaloop
+spec:
+  # Replica count is overridden per environment in overlays/
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pesaloop-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # 1 extra pod during rolling update
+      maxUnavailable: 0  # never drop below desired count during update
+  template:
+    metadata:
+      labels:
+        app: pesaloop-backend
+        project: pesaloop
+    spec:
+      # ── Match your Dockerfile: runs as non-root user pesaloop ──────────────
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      # ── Spread pods across nodes — prevents one node taking all pods ───────
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: pesaloop-backend
+                topologyKey: kubernetes.io/hostname
+
+      # ── Give Spring Boot 60s to finish in-flight requests on shutdown ──────
+      terminationGracePeriodSeconds: 60
+
+      # ── Pull image from GitHub Container Registry ──────────────────────────
+      # For private repos: create imagePullSecret from your GITHUB_TOKEN
+      # kubectl create secret docker-registry ghcr-secret \
+      #   --docker-server=ghcr.io \
+      #   --docker-username=francis-mwas \
+      #   --docker-password=YOUR_GITHUB_TOKEN
+      imagePullSecrets:
+        - name: ghcr-secret
+
+      containers:
+        - name: backend
+          # Image tag is overridden per environment in overlays/
+          image: ghcr.io/francis-mwas/pesaloop-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+
+          # ── Non-sensitive config from ConfigMap below ──────────────────────
+          envFrom:
+            - configMapRef:
+                name: pesaloop-backend-config
+
+          # ── Sensitive values injected from Secret ──────────────────────────
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: DB_PASSWORD
+            - name: PESALOOP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: JWT_SECRET
+            - name: PESALOOP_MPESA_CONSUMER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: MPESA_CONSUMER_KEY
+            - name: PESALOOP_MPESA_CONSUMER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: MPESA_CONSUMER_SECRET
+            - name: PESALOOP_MPESA_PASSKEY
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: MPESA_PASSKEY
+            - name: PESALOOP_SMS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pesaloop-backend-secrets
+                  key: SMS_API_KEY
+
+          # ── Resource limits — overridden per environment in overlays/ ──────
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # ── Startup probe: gives Spring Boot up to 120s to start ──────────
+          # Spring Boot + Flyway migrations can take 20-40s on cold start
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 24  # 24 x 5s = 120s max startup window
+            timeoutSeconds: 3
+
+          # ── Liveness probe: restart pod if it hangs or deadlocks ──────────
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 5
+
+          # ── Readiness probe: remove from load balancer if not ready ───────
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+
+          # ── Pre-stop hook: sleep 5s before shutdown signal ────────────────
+          # Gives the load balancer time to stop routing traffic here
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+
+---
+# =============================================================================
+# Service — stable internal DNS name for the backend
+# Other pods call: http://pesaloop-backend-service/api/...
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: pesaloop-backend-service
+  labels:
+    app: pesaloop-backend
+    project: pesaloop
+spec:
+  type: ClusterIP
+  selector:
+    app: pesaloop-backend
+  ports:
+    - name: http
+      port: 80           # port other services use to call this
+      targetPort: 8080   # port Spring Boot listens on
+
+---
+# =============================================================================
+# ConfigMap — all non-sensitive configuration
+# Sensitive values (passwords, keys) go in secrets.yaml — NOT here
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pesaloop-backend-config
+  labels:
+    app: pesaloop-backend
+    project: pesaloop
+data:
+  # ── Spring profile — matches your Dockerfile ENV ───────────────────────────
+  SPRING_PROFILES_ACTIVE: "docker"
+
+  # ── Database — password injected from Secret above ────────────────────────
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://pesaloop-postgres-service:5432/pesaloop"
+  SPRING_DATASOURCE_USERNAME: "pesaloop"
+
+  # ── Hikari connection pool — tuned conservatively ─────────────────────────
+  # Do NOT set this to 1200 — see incident analysis
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "20"
+  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "30000"
+  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "120000"
+  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "600000"
+  SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: "60000"
+
+  # ── Flyway DB migrations ───────────────────────────────────────────────────
+  SPRING_FLYWAY_ENABLED: "true"
+
+  # ── JPA ───────────────────────────────────────────────────────────────────
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+
+  # ── JWT — expiry overridden per environment ────────────────────────────────
+  PESALOOP_JWT_EXPIRY_HOURS: "24"
+
+  # ── M-Pesa — non-sensitive config (keys come from Secret) ─────────────────
+  PESALOOP_MPESA_ENVIRONMENT: "sandbox"
+  PESALOOP_MPESA_BASE_URL: "https://sandbox.safaricom.co.ke"
+  PESALOOP_MPESA_WEBHOOK_IP_CHECK_ENABLED: "false"
+  PESALOOP_BILLING_PAYBILL: "174379"
+
+  # ── Africa's Talking SMS ───────────────────────────────────────────────────
+  PESALOOP_SMS_PROVIDER: "africastalking"
+  PESALOOP_SMS_USERNAME: "sandbox"
+  PESALOOP_SMS_SENDER_ID: "PesaLoop"
+
+  # ── Spring Actuator — expose health endpoints for K8s probes ──────────────
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"
+  MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: "true"
+
+  # ── Logging — level overridden per environment in overlays/ ───────────────
+  LOGGING_LEVEL_COM_PESALOOP: "INFO"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: "WARN"
+  LOGGING_LEVEL_ORG_HIBERNATE_SQL: "WARN"
+  LOGGING_LEVEL_ORG_FLYWAYDB: "INFO"
+
+---
+# =============================================================================
+# PodDisruptionBudget — always keep minimum pods alive during node maintenance
+# Prevents a kubectl drain from killing all pods simultaneously
+# minAvailable is overridden per environment in overlays/
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pesaloop-backend-pdb
+  labels:
+    app: pesaloop-backend
+    project: pesaloop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: pesaloop-backend
