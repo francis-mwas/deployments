@@ -20,8 +20,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # 1 extra pod during rolling update
-      maxUnavailable: 0  # never drop below desired count during update
+      maxSurge: 1 # 1 extra pod during rolling update
+      maxUnavailable: 0 # never drop below desired count during update
   template:
     metadata:
       labels:
@@ -107,11 +107,11 @@ spec:
           # ── Resource limits — overridden per environment in overlays/ ──────
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: '512Mi'
+              cpu: '250m'
             limits:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: '1Gi'
+              cpu: '500m'
 
           # ── Startup probe: gives Spring Boot up to 120s to start ──────────
           # Spring Boot + Flyway migrations can take 20-40s on cold start
@@ -121,7 +121,7 @@ spec:
               port: 8080
             initialDelaySeconds: 20
             periodSeconds: 5
-            failureThreshold: 24  # 24 x 5s = 120s max startup window
+            failureThreshold: 24 # 24 x 5s = 120s max startup window
             timeoutSeconds: 3
 
           # ── Liveness probe: restart pod if it hangs or deadlocks ──────────
@@ -148,7 +148,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["sh", "-c", "sleep 5"]
+                command: ['sh', '-c', 'sleep 5']
 
 ---
 # =============================================================================
@@ -168,8 +168,8 @@ spec:
     app: pesaloop-backend
   ports:
     - name: http
-      port: 80           # port other services use to call this
-      targetPort: 8080   # port Spring Boot listens on
+      port: 80 # port other services use to call this
+      targetPort: 8080 # port Spring Boot listens on
 
 ---
 # =============================================================================
@@ -185,53 +185,53 @@ metadata:
     project: pesaloop
 data:
   # ── Spring profile — matches your Dockerfile ENV ───────────────────────────
-  SPRING_PROFILES_ACTIVE: "docker"
+  SPRING_PROFILES_ACTIVE: 'docker'
 
   # ── Database — password injected from Secret above ────────────────────────
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://pesaloop-postgres-service:5432/pesaloop"
-  SPRING_DATASOURCE_USERNAME: "pesaloop"
+  SPRING_DATASOURCE_URL: 'jdbc:postgresql://host.minikube.internal:5430/pesaloop'
+  SPRING_DATASOURCE_USERNAME: 'pesaloop'
 
   # ── Hikari connection pool — tuned conservatively ─────────────────────────
   # Do NOT set this to 1200 — see incident analysis
-  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
-  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "20"
-  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "30000"
-  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "120000"
-  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "600000"
-  SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: "60000"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: '5'
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: '20'
+  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: '30000'
+  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: '120000'
+  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: '600000'
+  SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: '60000'
 
   # ── Flyway DB migrations ───────────────────────────────────────────────────
-  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_ENABLED: 'true'
 
   # ── JPA ───────────────────────────────────────────────────────────────────
-  SPRING_JPA_SHOW_SQL: "false"
-  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+  SPRING_JPA_SHOW_SQL: 'false'
+  SPRING_JPA_HIBERNATE_DDL_AUTO: 'validate'
 
   # ── JWT — expiry overridden per environment ────────────────────────────────
-  PESALOOP_JWT_EXPIRY_HOURS: "24"
+  PESALOOP_JWT_EXPIRY_HOURS: '24'
 
   # ── M-Pesa — non-sensitive config (keys come from Secret) ─────────────────
-  PESALOOP_MPESA_ENVIRONMENT: "sandbox"
-  PESALOOP_MPESA_BASE_URL: "https://sandbox.safaricom.co.ke"
-  PESALOOP_MPESA_WEBHOOK_IP_CHECK_ENABLED: "false"
-  PESALOOP_BILLING_PAYBILL: "174379"
+  PESALOOP_MPESA_ENVIRONMENT: 'sandbox'
+  PESALOOP_MPESA_BASE_URL: 'https://sandbox.safaricom.co.ke'
+  PESALOOP_MPESA_WEBHOOK_IP_CHECK_ENABLED: 'false'
+  PESALOOP_BILLING_PAYBILL: '174379'
 
   # ── Africa's Talking SMS ───────────────────────────────────────────────────
-  PESALOOP_SMS_PROVIDER: "africastalking"
-  PESALOOP_SMS_USERNAME: "sandbox"
-  PESALOOP_SMS_SENDER_ID: "PesaLoop"
+  PESALOOP_SMS_PROVIDER: 'africastalking'
+  PESALOOP_SMS_USERNAME: 'sandbox'
+  PESALOOP_SMS_SENDER_ID: 'PesaLoop'
 
   # ── Spring Actuator — expose health endpoints for K8s probes ──────────────
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
-  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
-  MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"
-  MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: "true"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: 'health,info,metrics'
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: 'always'
+  MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: 'true'
+  MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: 'true'
 
   # ── Logging — level overridden per environment in overlays/ ───────────────
-  LOGGING_LEVEL_COM_PESALOOP: "INFO"
-  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: "WARN"
-  LOGGING_LEVEL_ORG_HIBERNATE_SQL: "WARN"
-  LOGGING_LEVEL_ORG_FLYWAYDB: "INFO"
+  LOGGING_LEVEL_COM_PESALOOP: 'INFO'
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: 'WARN'
+  LOGGING_LEVEL_ORG_HIBERNATE_SQL: 'WARN'
+  LOGGING_LEVEL_ORG_FLYWAYDB: 'INFO'
 
 ---
 # =============================================================================
