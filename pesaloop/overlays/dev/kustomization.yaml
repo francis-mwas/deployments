@@ -6,10 +6,9 @@ namespace: pesaloop-dev
 resources:
   - ../../base/backend
 
-# Dev image tag — updated automatically by GitHub Actions on every push to main
 images:
   - name: ghcr.io/francis-mwas/pesaloop-backend
-    newTag: dev-912742f
+    newTag: dev-latest
 
 patches:
   # 1 replica in dev
@@ -21,8 +20,7 @@ patches:
         path: /spec/replicas
         value: 1
 
-  # Use Recreate strategy in dev — kill old pod before starting new one
-  # Prevents two pods competing for limited memory
+  # Recreate strategy — kill old pod before starting new one
   - target:
       kind: Deployment
       name: pesaloop-backend
@@ -32,7 +30,7 @@ patches:
         value:
           type: Recreate
 
-  # Smaller resource limits for dev
+  # Smaller resources for dev
   - target:
       kind: Deployment
       name: pesaloop-backend
@@ -46,6 +44,22 @@ patches:
           limits:
             memory: "1Gi"
             cpu: "250m"
+
+  # Longer startup probe — Spring Boot slow on limited CPU
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe
+        value:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 30
+          timeoutSeconds: 5
 
 configMapGenerator:
   - name: pesaloop-backend-config
