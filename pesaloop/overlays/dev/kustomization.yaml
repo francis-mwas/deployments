@@ -8,7 +8,7 @@ resources:
 
 images:
   - name: ghcr.io/francis-mwas/pesaloop-backend
-    newTag: dev-60c298f
+    newTag: dev-8c073a3
 
 patches:
   # 1 replica in dev
