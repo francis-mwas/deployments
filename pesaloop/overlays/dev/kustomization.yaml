@@ -12,6 +12,7 @@ images:
     newTag: dev-912742f
 
 patches:
+  # 1 replica in dev
   - target:
       kind: Deployment
       name: pesaloop-backend
@@ -19,7 +20,19 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
-  # Increase memory for dev — Spring Boot needs more room to start
+
+  # Use Recreate strategy in dev — kill old pod before starting new one
+  # Prevents two pods competing for limited memory
+  - target:
+      kind: Deployment
+      name: pesaloop-backend
+    patch: |
+      - op: replace
+        path: /spec/strategy
+        value:
+          type: Recreate
+
+  # Smaller resource limits for dev
   - target:
       kind: Deployment
       name: pesaloop-backend
